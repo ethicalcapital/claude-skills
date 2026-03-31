@@ -97,4 +97,4 @@ The investment research and compliance skills are especially relevant for due di
 
 ## License
 
-[MIT](LICENSE)
+[CC BY-NC 4.0](LICENSE) — use freely, but not for resale.
