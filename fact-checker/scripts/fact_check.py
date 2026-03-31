@@ -19,7 +19,8 @@ Usage:
     doppler run -- uv run python fact_check.py --file doc.md --output report.md --verbose
 
 Env vars (via Doppler):
-    RAILWAY_SEARXNG_URL  — self-hosted SearXNG on Railway (required for search)
+    SEARXNG_URL          — self-hosted SearXNG (preferred)
+    RAILWAY_SEARXNG_URL  — legacy fallback for SEARXNG_URL
     EXA_API_KEY          — EXA neural search (optional, improves recall)
     ANTHROPIC_API_KEY    — Claude API (required)
 
@@ -33,7 +34,7 @@ import asyncio
 import json
 import os
 import sys
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from typing import Literal
 
 import anthropic
@@ -68,9 +69,9 @@ class Source:
 class ProposedEdit:
     claim_id: int
     edit_type: EditType
-    original_text: str           # exact span from source document
-    proposed_text: str           # replacement (may include markdown links/footnotes)
-    footnote_text: str = ""      # full footnote if edit_type == "add_footnote"
+    original_text: str  # exact span from source document
+    proposed_text: str  # replacement (may include markdown links/footnotes)
+    footnote_text: str = ""  # full footnote if edit_type == "add_footnote"
     best_source_url: str = ""
     best_source_title: str = ""
     reasoning: str = ""
@@ -91,7 +92,9 @@ class ClaimResult:
 
 
 async def searxng_search(query: str, num: int = 6) -> list[Source]:
-    base_url = os.environ.get("RAILWAY_SEARXNG_URL", "").rstrip("/")
+    base_url = (
+        os.environ.get("SEARXNG_URL") or os.environ.get("RAILWAY_SEARXNG_URL", "")
+    ).rstrip("/")
     if not base_url:
         return []
     try:
@@ -286,13 +289,14 @@ def extract_claims(client: anthropic.Anthropic, text: str) -> list[Claim]:
     ]
 
 
-def assess_claim(
-    client: anthropic.Anthropic, claim: Claim, sources: list[Source]
-) -> ClaimResult:
-    source_block = "\n\n".join(
-        f"[{i+1}] {s.provider.upper()} — {s.title}\nURL: {s.url}\nDate: {s.published_date or 'unknown'}\n{s.excerpt}"
-        for i, s in enumerate(sources[:8])
-    ) or "No search results found."
+def assess_claim(client: anthropic.Anthropic, claim: Claim, sources: list[Source]) -> ClaimResult:
+    source_block = (
+        "\n\n".join(
+            f"[{i + 1}] {s.provider.upper()} — {s.title}\nURL: {s.url}\nDate: {s.published_date or 'unknown'}\n{s.excerpt}"
+            for i, s in enumerate(sources[:8])
+        )
+        or "No search results found."
+    )
 
     response = client.messages.create(
         model="claude-haiku-4-5-20251001",
@@ -397,7 +401,9 @@ def format_markdown_report(results: list[ClaimResult]) -> str:
                 if e.footnote_text:
                     lines += [f"- Footnote: {e.footnote_text}"]
                 if e.best_source_url:
-                    lines += [f"- Source: [{e.best_source_title or e.best_source_url}]({e.best_source_url})"]
+                    lines += [
+                        f"- Source: [{e.best_source_title or e.best_source_url}]({e.best_source_url})"
+                    ]
                 lines += [""]
             if r.sources:
                 lines += ["**Search results:**"]
@@ -413,7 +419,14 @@ def format_markdown_report(results: list[ClaimResult]) -> str:
         lines += [""]
 
     if heuristics:
-        lines += ["---", "", "## Heuristics", "", "_Arguable generalizations — defensible but not definitively citable._", ""]
+        lines += [
+            "---",
+            "",
+            "## Heuristics",
+            "",
+            "_Arguable generalizations — defensible but not definitively citable._",
+            "",
+        ]
         for r in heuristics:
             lines += [f"- 〜 **[{r.claim.id}]** {r.claim.text}"]
         lines += [""]
@@ -427,6 +440,7 @@ def format_json_output(
     source_file: str | None,
 ) -> str:
     """Structured JSON for Claude's interactive approval loop."""
+
     def result_to_dict(r: ClaimResult) -> dict:
         d: dict = {
             "claim_id": r.claim.id,
@@ -464,8 +478,7 @@ def format_json_output(
         "source_file": source_file,
         "total_claims": len(results),
         "edits_proposed": sum(
-            1 for r in results
-            if r.proposed_edit and r.proposed_edit.edit_type != "none"
+            1 for r in results if r.proposed_edit and r.proposed_edit.edit_type != "none"
         ),
         "results": [result_to_dict(r) for r in results],
     }
@@ -535,8 +548,9 @@ def main() -> None:
     parser.add_argument("--file", "-f", help="Read text from file")
     parser.add_argument("--output", "-o", help="Write report/JSON to file")
     parser.add_argument(
-        "--json", action="store_true",
-        help="Output structured JSON for Claude's approval loop (default: markdown)"
+        "--json",
+        action="store_true",
+        help="Output structured JSON for Claude's approval loop (default: markdown)",
     )
     parser.add_argument("--verbose", "-v", action="store_true")
     args = parser.parse_args()
@@ -553,7 +567,9 @@ def main() -> None:
         parser.print_help()
         sys.exit(1)
 
-    results, original = asyncio.run(run(text.strip(), source_file=source_file, verbose=args.verbose))
+    results, original = asyncio.run(
+        run(text.strip(), source_file=source_file, verbose=args.verbose)
+    )
 
     if args.json:
         output = format_json_output(results, original, source_file)

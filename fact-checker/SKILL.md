@@ -8,7 +8,7 @@ description: |
   - OPINION: subjective judgment or prediction → flagged, no citation required, no edit
   - HEURISTIC: arguable generalization ("usually", "tends to", "often") → flagged as defensible but not definitively citable
 
-  For FACT claims: searches in parallel via SearXNG (self-hosted) + EXA neural + parallel Claude subagents (for large batches), then proposes one of: add_link, add_footnote, reword, soften, flag, or none.
+  For FACT claims: searches in parallel via SearXNG (self-hosted) + EXA neural + WebSearch tool, then proposes one of: add_link, add_footnote, reword, soften, flag, or none.
 
   Use when:
   - Sloane says "fact-check this", "is this true", "check this note"
@@ -20,6 +20,8 @@ description: |
 # Fact Checker
 
 Five phases. Phases 1–4 run automatically; Phase 5 is the interactive loop with Sloane.
+
+**Tools used**: Read (to read source files), WebSearch (primary web search), WebFetch (fetch specific URLs), Edit (apply approved changes), Bash (run the SearXNG/EXA helper script for parallel API searches).
 
 ---
 
@@ -38,25 +40,42 @@ Present the claim list to Sloane and ask if anything was missed before proceedin
 
 ---
 
-## Phase 2: Search evidence (parallel)
+## Phase 2: Search evidence (parallel, multi-source)
 
-**Default: parallel HTTP searches from the script**
+Use multiple search strategies in parallel for each FACT claim. The goal is to get at least 2–3 independent signals per claim.
 
-Run `fact_check.py --json --file <source_file>` — it fires all FACT claims in parallel via SearXNG + EXA simultaneously and returns structured JSON.
+### Strategy A: WebSearch tool (primary)
+
+Use the `WebSearch` tool directly for each FACT claim. This is the simplest and most reliable path.
+
+### Strategy B: SearXNG + EXA helper script (supplementary)
+
+Run the helper script to fire parallel HTTP searches via SearXNG and EXA. This provides additional sources beyond what WebSearch finds.
 
 ```bash
 doppler run -- uv run python .claude/skills/fact-checker/scripts/fact_check.py \
   --file path/to/document.md --json --verbose
 ```
 
-**For large documents (10+ FACT claims): also spawn parallel Claude subagents**
+The script handles SearXNG + EXA in parallel and returns structured JSON with sources per claim. It also uses Claude API for claim extraction and verdict generation — but when running from Claude Code, use the script primarily for its **search capability** (the `--json` output includes sources), and do your own assessment in Phase 3.
 
-Use the `superpowers:dispatching-parallel-agents` pattern. Each subagent gets one claim and uses the WebSearch + WebFetch tools. Merge results back. This gives three independent search signals per claim:
-1. SearXNG (self-hosted, broad web)
-2. EXA neural (semantic, good for nuanced claims)
-3. Claude subagent with WebSearch (fresh, handles recent events)
+### Strategy C: Subagents for large documents (10+ FACT claims)
 
-**Search provider reference:**
+Use the `dispatching-parallel-agents` pattern. Spawn one subagent per claim (or batch of 2–3 claims). Each subagent uses WebSearch + WebFetch to find evidence. Merge results back.
+
+This gives up to three independent search signals per claim:
+1. WebSearch (Claude Code built-in)
+2. SearXNG (via helper script, self-hosted broad web)
+3. EXA neural (via helper script, semantic search for nuanced claims)
+
+### When to use which
+
+- **< 5 FACT claims**: WebSearch tool only (Strategy A). Fast and sufficient.
+- **5–10 FACT claims**: WebSearch + helper script (A + B). Better recall.
+- **10+ FACT claims**: All three (A + B + C). Subagents prevent serial bottleneck.
+
+### Search provider reference (for manual use if needed):
+
 ```
 SearXNG: GET {RAILWAY_SEARXNG_URL}/search?q={query}&format=json&language=en&pageno=1
 EXA:     POST https://api.exa.ai/search
@@ -87,7 +106,7 @@ Confidence: **HIGH** (strong/consistent) · **MEDIUM** (partial/gaps) · **LOW**
 For every FACT claim, propose one concrete edit. Check the brand voice skill before proposing any rewording:
 
 ```
-Invoke: brand-voice:enforce-voice
+Invoke: ecic-brand
 Purpose: ensure proposed rewording matches ECIC's documented voice
 ```
 
@@ -149,7 +168,7 @@ SOURCE: [Title](url)
 ```
 
 **Handling responses:**
-- **A / approve / yes**: Use the Edit tool to replace `original_text` with `proposed_text` in the source file. If `footnote_text` is present, append the footnote to the document. Confirm: "✅ Edit applied." Then advance.
+- **A / approve / yes**: Use the Edit tool to replace `original_text` with `proposed_text` in the source file. If `footnote_text` is present, append the footnote to the document. Confirm: "Edit applied." Then advance.
 - **M / modify / [dictated change]**: Incorporate Sloane's modification into the proposed text. Show the revised version and wait for explicit approval before applying.
 - **S / skip / no**: Note skipped, advance.
 - **Q / done / stop**: End the loop, show a summary of what was applied vs. skipped.
@@ -167,7 +186,8 @@ Applied 4 edits (2 links, 1 footnote, 1 reword) · Skipped 2 · File saved: path
 - **Never invent sources** — only cite URLs that appeared in actual search results
 - **Never modify opinions or heuristics** — only FACT claims get edits
 - **Do not apply any edit without explicit approval** — show first, apply only on A/approve
-- **Preserve Sloane's voice** — rewording must not change tone; run brand-voice:enforce-voice if uncertain
+- **Preserve Sloane's voice** — rewording must not change tone; invoke the `ecic-brand` skill if uncertain
 - **One edit per claim** — do not propose multiple alternatives; pick the best one
-- If `RAILWAY_SEARXNG_URL` is missing, skip SearXNG and note it; EXA + subagents still run
-- If `EXA_API_KEY` is missing, SearXNG + subagents still run; note EXA is unavailable
+- If `RAILWAY_SEARXNG_URL` is missing, skip SearXNG and note it; WebSearch + EXA still run
+- If `EXA_API_KEY` is missing, WebSearch + SearXNG still run; note EXA is unavailable
+- If WebSearch is unavailable, fall back to the helper script (SearXNG + EXA) only
