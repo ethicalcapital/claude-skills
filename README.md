@@ -18,6 +18,7 @@ How we screen companies, write exclusion narratives, and check our own work.
 | [research-reviewer](research-reviewer/) | Research note quality review, staleness detection, MD-DB consistency |
 | [compliance-analyst](compliance-analyst/) | RIA marketing compliance — SEC Marketing Rule, Utah R164, CAN-SPAM |
 | [ecic-brand](ecic-brand/) | Brand voice, visual identity, and tone enforcement |
+| [accessibility-review](accessibility-review/) | Accessibility across all outputs — web, PDFs, emails, data viz, client documents (WCAG 2.2 AA + PDF/UA) |
 
 ### Writing & Argumentation
 
