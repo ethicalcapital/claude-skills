@@ -74,6 +74,92 @@ These judgment calls encode how the CIO evaluates severity, materiality, and rec
 
 **PFAS routing:** PFAS in pesticide formulations → `pesticides`. PFAS from non-pesticide products (Teflon, firefighting foam, food packaging) → `environmental_damage` or a future harmful products code, not `pesticides`.
 
+## Evidence Quality Standards (from 2026-03-31 audit)
+
+These standards emerged from a full audit of 86 exclusion records, 16,259 evidence URLs, and validation of the top 22 SPY positions by weight. They encode what distinguishes a defensible exclusion from a liability.
+
+### What counts as evidence
+
+**Strong evidence (keeps exclusions alive):**
+- Regulatory enforcement actions with case numbers (SEC, DOJ, FTC, OSHA, EPA, CFPB, state AGs)
+- Court filings and settlements with dollar amounts and dates
+- Peer-reviewed research (Science, Environmental Research Letters, One Earth)
+- Named NGO investigations (HRW, Amnesty, AFSC Investigate, Who Profits, BHRRC, InfluenceMap)
+- ViolationTracker aggregate penalty data with record counts
+- Company disclosures that contradict company claims (internal docs vs. public statements)
+- Government databases (OSHA inspection records, EPA ECHO, SEC EDGAR filings)
+
+**Weak evidence (insufficient alone — needs corroboration):**
+- Low benchmark/disclosure scores without documented incidents (e.g., KnowTheChain score of 8/100 with zero actual forced labor incidents — this got AVGO, 2.6% of SPY, downgraded to pipeline)
+- Single employee criminal convictions where the company was the victim (e.g., Netflix VP bribery — company cooperated with prosecution)
+- Advocacy group opinion pieces about reporting methodology inconsistencies (e.g., GEV emissions reporting — no SEC action, no actual fraud)
+- De minimis fines for large companies ($157K VOC settlement for a $150B company is noise, not a pattern)
+- Pending lawsuits about prospective harm that hasn't occurred yet
+
+**Junk evidence (must be removed on sight):**
+- Reddit threads, WordPress blogs, Medium posts, Substack newsletters
+- Stock screener / investment blog articles ("Is this undervalued stock a hidden gem?")
+- LinkedIn profile pages
+- API endpoints not intended for human consumption
+- Company's own anti-harm corporate statements cited as evidence OF harm (this is how KLAC got a conflict_zones exclusion from its own boilerplate)
+- URLs from one company cited as evidence against a different company (Fairlife dairy case study cited against DRRX, a pharma company)
+- Content farm statistics pages (gitnux.org, portersfiveforce.com)
+
+### The pipeline hallucination problem
+
+The research pipeline can generate plausible-sounding reason_detail text with fabricated or irrelevant evidence URLs. Signs of a hallucinated record:
+- Reason_detail reads like a company description, not evidence of harm
+- Evidence URLs are bare homepages with no path
+- Evidence URLs point to completely unrelated content
+- The reason_detail restates the company's own corporate policy as if it were an accusation
+- Dollar amounts, citation numbers, or case references that can't be verified
+
+**Every new pipeline-generated record should be treated as unverified until a human or research agent confirms the specific claims.** The pipeline is good at identifying *which* companies to investigate. It is unreliable at *documenting why*.
+
+### Weight-aware audit methodology
+
+Exclusions should be strongest where they cost the most. To audit efficiently:
+
+```sql
+-- Surface highest-cost, thinnest-rationale exclusions
+WITH spy AS (
+    SELECT holding_ticker, weight_pct, holding_company_id
+    FROM research.fund_holdings WHERE fund_ticker = 'SPY' AND is_equity = true
+),
+exclusion_counts AS (
+    SELECT company_id, COUNT(*) as reason_count
+    FROM exclusions.active_exclusions
+    WHERE valid_to IS NULL AND is_approved = true AND disposition = 'excluded'
+    GROUP BY company_id
+)
+SELECT s.holding_ticker, s.weight_pct, ec.reason_count
+FROM spy s JOIN exclusion_counts ec ON ec.company_id = s.holding_company_id
+WHERE ec.reason_count <= 2
+ORDER BY s.weight_pct DESC;
+```
+
+A baseless exclusion on a 2.6% SPY position costs more portfolio flexibility than a well-sourced exclusion on a 0.01% position. When auditing, start from the top of this list. The 2026-03-31 audit freed 4.1% of SPY weight (from 92.15% to 88.01% excluded) by removing 5 weak/baseless exclusions while simultaneously strengthening evidence on positions that stayed.
+
+### Category accuracy matters
+
+Miscategorized exclusions undermine credibility even when the underlying concern is real:
+- U.S. immigration enforcement is NOT a "conflict zone" (CRM was reclassified to `border_enforcement`)
+- A facility inside the Green Line is NOT "occupied territory" (INTC was reclassified to `military_contracting`)
+- An NGO's opinion about emissions reporting is NOT "financial misconduct" (GEV was downgraded)
+- FDA clinical holds during normal drug development are NOT "regulatory failures" (SLRX was retired)
+- A company's own anti-conflict statement is NOT evidence of conflict zone involvement (KLAC was retired)
+
+Before writing a record, read the taxonomy description for both the target code AND adjacent codes. If the evidence fits better next door, put it there.
+
+### Dual-use technology
+
+Some companies (Thermo Fisher, Intel, KLA) make products with both civilian and military applications. The test is not whether the product *could* be used for harm — it's whether the company has:
+1. A dedicated defense/military division or marketing channel
+2. Direct contracts with military/intelligence/border enforcement agencies
+3. Knowledge that products are being used for surveillance, weapons manufacturing, or repression
+
+Thermo Fisher has all three (defense applications page, $120M FBI/CODIS contract, documented Uyghur DNA surveillance). A semiconductor company whose chips end up in military systems through third-party integration is a weaker case unless there are direct military contracts.
+
 ## Anti-patterns
 
 | Don't write | Write instead |
@@ -107,7 +193,7 @@ All INSERT statements must use `ON CONFLICT DO NOTHING` or `ON CONFLICT ... DO U
 <!-- TAXONOMY_START -->
 ## Taxonomy Reference (auto-generated 2026-03-31)
 
-> **3,331** active exclusion records across **2,389** companies, **55** sub-category codes.
+> **3,324** active exclusion records across **2,388** companies, **56** sub-category codes.
 > Queried from `exclusions.taxonomy` + `exclusions.active_exclusions`.
 > **Stale if older than 12 months.** Re-run: `doppler run -- uv run scripts/refresh_exclusion_taxonomy.py`
 
@@ -116,19 +202,19 @@ All INSERT statements must use `ON CONFLICT DO NOTHING` or `ON CONFLICT ... DO U
 
 | Code | Name | Records | Description |
 |------|------|---------|-------------|
-| `animal_exploitation` | Animal Exploitation | 33 | Catch-all for commercial exploitation of animals not covered by a specific child code (animal_exploitation_hides, ani... |
+| `animal_exploitation` | Animal Exploitation | 33 | Commercial exploitation of animals not covered by a more specific code (animal_exploitation_hides, animal_exploitatio... |
 | `animal_exploitation_entertainment` | Animal Entertainment | 20 | Use of live animals in commercial entertainment, including circuses, marine parks (SeaWorld), rodeos, bullfighting, e... |
 | `animal_exploitation_hides` | Hides, Furs & Exotic Leather | 84 | Commercial production or sale of animal hides, furs, exotic leather, or skins — including fur farming, trapping, and ... |
 | `animal_exploitation_meat` | Meat, Dairy & Eggs | 111 | Commercial production, processing, or significant revenue from sale of meat, poultry, seafood, dairy, or eggs — inclu... |
 | `animal_testing` | Animal Testing & Research | 699 | Companies that test on animals as part of product development, regulatory compliance, or research — pharmaceuticals, ... |
 | `factory_farming` | Factory Farming | 9 | Concentrated animal feeding operations (CAFOs) and industrial-scale confinement agriculture — companies whose primary... |
-| `fur_exotic_skins` | Fur & Exotic Skins | 4 | Legacy code — functionally identical to animal_exploitation_hides. Retained for historical records. New records shoul... |
+| `fur_exotic_skins` | Fur & Exotic Skins | 4 | Companies involved in the commercial fur and exotic skin trade — fur farming, wild trapping, and exotic species sourc... |
 ### 2.2 Weapons and Military Operations
 *Product-Based Exclusions*
 
 | Code | Name | Records | Description |
 |------|------|---------|-------------|
-| `military_contracting` | Military Contracting | 126 | Companies that sell weapons, military materiel, defense equipment, or military services where the military applicatio... |
+| `military_contracting` | Military Contracting | 128 | Companies that sell weapons, military materiel, defense equipment, or military services where the military applicatio... |
 | `weapons_promotion` | Weapons Promotion | 6 | Companies that promote civilian weapons ownership, manufacture civilian firearms or ammunition, or operate retail cha... |
 ### 2.3 Addictive and Exploitative Products
 *Product-Based Exclusions*
@@ -147,27 +233,28 @@ All INSERT statements must use `ON CONFLICT DO NOTHING` or `ON CONFLICT ... DO U
 |------|------|---------|-------------|
 | `coal` | Coal Operations | 91 | Companies that mine, process, transport, or trade thermal or metallurgical coal as a primary business activity. Inclu... |
 | `extractive_industries` | Extractive Industries | 39 | Non-fuel mining and extraction — companies that extract minerals, metals, aggregates, or other non-fuel natural resou... |
-| `fossil_fuel_ancillary` | Fossil Fuel Ancillary Services | 67 | Legacy code — being replaced by fossil_fuel_services. Companies that provide ancillary services, equipment, or infras... |
-| `fossil_fuel_services` | Fossil Fuel Services | 67 | Oilfield services, equipment manufacturing, and contracting that primarily serve fossil fuel operators (e.g., SLB, Ha... |
+| `fossil_fuel_ancillary` | Fossil Fuel Ancillary Services | 38 | Companies that provide ancillary services, equipment, or infrastructure to fossil fuel operators without directly ext... |
+| `fossil_fuel_financing` | Fossil Fuel Financing | 29 | Financial institutions whose lending, underwriting, and project finance activities provide material capital to fossil... |
+| `fossil_fuel_services` | Fossil Fuel Services | 67 | Oilfield services, equipment manufacturing, and contracting that primarily serve fossil fuel operators — including dr... |
 | `fossil_fuels` | General Fossil Fuels | 0 | TEMPORARY CATCHALL — pending reclassification into fossil_fuels_upstream, fossil_fuels_midstream, fossil_fuels_downst... |
 | `fossil_fuels_downstream` | Downstream Fossil Fuels | 30 | Refining, marketing, and retail distribution of fossil fuel products: refineries, fuel retailers, petrochemical proce... |
 | `fossil_fuels_midstream` | Midstream Fossil Fuels | 63 | Transportation, storage, and processing of fossil fuels: pipelines, terminals, LNG facilities, storage operators. Ess... |
 | `fossil_fuels_upstream` | Upstream Fossil Fuels | 96 | Exploration, extraction, and production of oil, gas, and other fossil fuels (E&P companies, drilling operators, produ... |
 | `natural_gas` | Natural Gas | 16 | Companies primarily in natural gas distribution, storage, or retail — gas utilities, local distribution companies (LD... |
-| `oil_gas` | Oil & Gas Extraction | 19 | Legacy catch-all for integrated oil and gas companies that span upstream, midstream, and downstream operations. For n... |
+| `oil_gas` | Oil & Gas Extraction | 19 | Integrated oil and gas companies that span exploration, production, refining, and retail — companies whose operations... |
 ### 2.5 Surveillance and Incarceration Systems
 *Product-Based Exclusions*
 
 | Code | Name | Records | Description |
 |------|------|---------|-------------|
-| `border_enforcement` | Border Enforcement Infrastructure | 1 | Companies that provide infrastructure, technology, equipment, or services specifically to national border enforcement... |
-| `surveillance_tech` | Surveillance Technology | 36 | Companies that manufacture, develop, or sell surveillance technology as a product — including hardware (cameras, sens... |
+| `border_enforcement` | Border Enforcement Infrastructure | 3 | Companies that provide infrastructure, technology, equipment, or services specifically to national border enforcement... |
+| `surveillance_tech` | Surveillance Technology | 37 | Companies that manufacture, develop, or sell surveillance technology as a product — including hardware (cameras, sens... |
 ### 3.1 Forced Labor, Child Labor, and Trafficking
 *Conduct-Based Exclusions*
 
 | Code | Name | Records | Description |
 |------|------|---------|-------------|
-| `child_labor` | Child Labor | 5 | Use of child labor in company operations or supply chains |
+| `child_labor` | Child Labor | 5 | Companies with documented use of child labor in direct operations or supply chains — including agricultural child lab... |
 | `forced_labor` | Forced Labor | 29 | Forced or bonded labor, human trafficking for labor exploitation, and modern slavery in direct operations or supply c... |
 ### 3.2 Worker Rights and Workplace Safety
 *Conduct-Based Exclusions*
@@ -178,22 +265,22 @@ All INSERT statements must use `ON CONFLICT DO NOTHING` or `ON CONFLICT ... DO U
 | `discrimination` | Workplace Discrimination | 42 | Documented systemic discrimination in hiring, pay, promotion, or workplace conditions — racial discrimination, gender... |
 | `preventable_deaths` | Preventable Deaths | 27 | Any corporate conduct, product defect, or operational failure that results in preventable human deaths — industrial d... |
 | `worker_exploitation` | Worker Exploitation | 21 | Systematic wage theft, misclassification of employees as contractors, unpaid overtime, tip theft, or other schemes to... |
-| `working_conditions` | Working Conditions | 36 | Dangerous or degrading workplace conditions — documented patterns of preventable injuries, deaths, or illness caused ... |
+| `working_conditions` | Working Conditions | 31 | Dangerous or degrading workplace conditions — documented patterns of preventable injuries, deaths, or illness caused ... |
 ### 3.3 Conflict, Occupation, and Indigenous Rights
 *Conduct-Based Exclusions*
 
 | Code | Name | Records | Description |
 |------|------|---------|-------------|
-| `conflict_zones` | Conflict & War Zones | 116 | Companies operating in or materially supporting activities in active conflict zones — providing goods, services, or i... |
-| `human_rights_violations` | Human Rights Violations | 3 | Documented complicity in serious human rights violations that do not fit a more specific code — extrajudicial killing... |
-| `indigenous_rights` | Indigenous Rights | 12 | Human rights violations, Violations in conflict situations, Disrespecting indigenous sovereignty |
+| `conflict_zones` | Conflict & War Zones | 114 | Companies operating in or materially supporting activities in active conflict zones — providing goods, services, or i... |
+| `human_rights_violations` | Human Rights Violations | 3 | Documented complicity in serious human rights violations — extrajudicial killings, torture, mass displacement, or sys... |
+| `indigenous_rights` | Indigenous Rights | 12 | Companies complicit in violations of indigenous peoples' rights — including disregard for sovereignty and self-determ... |
 | `occupied_territories` | Occupied & Disputed Territories | 171 | Companies operating in or materially supporting activities in occupied or disputed territories in violation of intern... |
 ### 3.4 Environmental and Climate Misconduct
 *Conduct-Based Exclusions*
 
 | Code | Name | Records | Description |
 |------|------|---------|-------------|
-| `climate_policy` | Climate Intransigence | 95 | Companies that actively obstruct climate policy, misrepresent climate science, set misleading climate targets, or lob... |
+| `climate_policy` | Climate Intransigence | 96 | Companies that actively obstruct climate policy, misrepresent climate science, set misleading climate targets, or lob... |
 | `emissions` | Emissions & Air Quality | 104 | Companies with outsized greenhouse gas emissions, criteria air pollutant violations, or systematic failure to reduce ... |
 | `environmental_damage` | Environmental Damage | 349 | Documented environmental destruction — oil spills, toxic contamination, deforestation, habitat destruction, soil cont... |
 | `pesticides` | Pesticides & Chemicals | 11 | Companies that manufacture, distribute, or derive significant revenue from synthetic pesticides, herbicides, or indus... |
@@ -204,10 +291,10 @@ All INSERT statements must use `ON CONFLICT DO NOTHING` or `ON CONFLICT ... DO U
 
 | Code | Name | Records | Description |
 |------|------|---------|-------------|
-| `anticompetitive` | Anticompetitive Practices | 34 | Anti-competitive practices: price-fixing, monopolistic behavior, or market manipulation |
-| `corruption` | Corruption & Fraud | 61 | Documented corruption, bribery, or fraud in business operations or government dealings |
+| `anticompetitive` | Anticompetitive Practices | 34 | Companies engaged in anti-competitive practices — price-fixing conspiracies, monopolistic behavior, market manipulati... |
+| `corruption` | Corruption & Fraud | 60 | Documented corruption, bribery, or fraud in business operations or government dealings — FCPA violations, UK Bribery ... |
 | `financial_misconduct` | Financial Misconduct | 175 | Predatory financial practices that harm consumers, investors, or beneficiaries — deceptive fee structures, insurance ... |
-| `tax_avoidance` | Tax or Liability Avoidance | 8 | Corporate structure manipulation engineered to shed obligations to the public or harmed parties — tax inversions, spi... |
+| `tax_avoidance` | Tax or Liability Avoidance | 15 | Corporate structure manipulation engineered to shed obligations to the public or harmed parties — tax inversions, spi... |
 ### 3.6 Consumer and Community Harm
 *Conduct-Based Exclusions*
 
@@ -223,14 +310,14 @@ All INSERT statements must use `ON CONFLICT DO NOTHING` or `ON CONFLICT ... DO U
 
 | Code | Name | Records | Description |
 |------|------|---------|-------------|
-| `political_influence` | Political Influence | 24 | Documented use of political donations, lobbying, or regulatory capture to shield harmful practices |
+| `political_influence` | Political Influence | 24 | Documented use of political donations, lobbying, or regulatory capture to shield harmful practices from oversight — i... |
 ### 3.8 Information Integrity and Platform Accountability
 *Product-Based Exclusions*
 
 | Code | Name | Records | Description |
 |------|------|---------|-------------|
 | `data_privacy` | Data & Privacy | 28 | Companies whose business model involves deploying behavioral surveillance against their own users, customers, or subj... |
-| `misinformation` | Misinformation & Disinformation | 18 | Systematic spread of false information, propaganda, or content designed to mislead or manipulate public understanding |
+| `misinformation` | Misinformation & Disinformation | 19 | Systematic spread of false information, propaganda, or content designed to mislead or manipulate public understanding |
 | `private_prisons` | For-Profit Prisons | 36 | Companies that own or operate for-profit prisons, immigration detention centers, or juvenile detention facilities, or... |
 ### 3.9 Regulatory and Governance Failures
 *Conduct-Based Exclusions*
@@ -238,5 +325,5 @@ All INSERT statements must use `ON CONFLICT DO NOTHING` or `ON CONFLICT ... DO U
 | Code | Name | Records | Description |
 |------|------|---------|-------------|
 | `multiple_violations` | Multiple Violations | 0 | Companies where documented misconduct spans multiple categories or where the formal exclusion grounds — typically gov... |
-| `regulatory_failures` | Regulatory Violations | 52 | Companies with a documented pattern of regulatory violations across multiple domains — serial OSHA violations, repeat... |
+| `regulatory_failures` | Regulatory Violations | 39 | Companies with a documented pattern of regulatory violations across multiple domains — serial OSHA violations, repeat... |
 <!-- TAXONOMY_END -->

@@ -122,6 +122,67 @@ twenty-page white paper.
 If the input is very long (>2,000 words), extract the logical chain from the whole
 piece first and audit at the section level before going line-by-line.
 
+## Large Documents (>2,000 words): Mandatory Subagent Dispatch
+
+**Do not audit a large document in a single pass.** Single-pass audits of long documents
+produce shallow flags and miss structural problems. Dispatch subagents.
+
+### When to dispatch
+
+- Any document >2,000 words
+- Any multi-section report, white paper, or research document
+- Any document with distinct regional/topical sections that can be reviewed independently
+
+### How to dispatch
+
+1. **Read the first 150 lines** to understand the document's structure and claimed argument.
+
+2. **Identify natural section boundaries** — regional sections, topical chapters, major argument
+   blocks. Each becomes one subagent scope.
+
+3. **Dispatch one subagent per section** using the Task tool. Each subagent gets:
+   - The editorial standard to work toward (quote the original if available; describe the
+     target voice if not)
+   - Explicit scope: which section/region/lines to review
+   - The four deliverables: logical chain audit, buzz-saw flags, editorial rewrite of
+     the section intro/synthesis, synthesis verdict
+   - Any known problems to look for (e.g., "check if LGBTQ+ criminalization is treated
+     with false equivalence")
+
+4. **Always dispatch an intro/framing agent** as a separate task. The intro is where
+   voice is established and arguments are stated. It fails differently than section content.
+
+5. **Run all agents in parallel** (single message, multiple Task tool calls).
+
+### Synthesizing results
+
+When subagents return:
+- Read each audit
+- Identify cross-cutting problems (a hedging pattern that appears in every section is
+  a systemic issue, not a section issue — name it as systemic)
+- Produce a master synthesis: what are the 3-5 highest-leverage fixes for the whole document?
+- Write the replacement intro/framing prose (or commission a final agent to do so if the
+  intro needs substantial rewriting based on what the section audits revealed)
+
+### Subagent prompt template
+
+```
+You are doing a buzz-saw editorial review of [section name].
+
+## THE STANDARD YOU'RE EDITING TOWARD
+[Quote or describe the target voice. Be specific — what does the original sound like?
+What does it say directly that the current version hedges?]
+
+## YOUR TASK
+Read [file path] and focus on [section description with line numbers or headers].
+
+Produce:
+1. LOGICAL CHAIN AUDIT — what argument is this section making? If it's a data dump, say so.
+2. BUZZ-SAW FLAGS — flag [DEAD WEIGHT], [VAGUE], [UNCITED], [HEDGING], [MISSING VOICE]
+3. EDITORIAL REWRITE — 2-3 paragraph replacement intro/synthesis for this section
+4. SYNTHESIS VERDICT — one paragraph: what's the actual argument, is it made clearly?
+```
+
 ## When the argument cannot be saved
 
 Sometimes an argument is broken at the foundation — a false premise, a non sequitur
