@@ -9,7 +9,7 @@ description: Use when writing reason_detail narratives for exclusions.active_exc
 
 ## The Voice
 
-Third-person factual narrative. You are writing a regulatory finding, not an opinion piece. The facts carry the judgment — you don't need adjectives to make the case. If the evidence is damning, just state the evidence.
+Third-person factual narrative. You are sharing a finding, not writing an oo-ed. If the evidence is damning, just state the evidence.
 
 ## Structure
 
