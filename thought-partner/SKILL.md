@@ -111,8 +111,8 @@ When in doubt: leave more, not less. Future-Sloane or future-Claude will thank y
 
 Do not re-derive these from context — they're true:
 
-- Sloane Ortelere is the CIO of Ethical Capital Investment Collaborative, Provo UT
-- ~$4.2M AUM, concentrated equity growth strategy (flagship), values-aligned — never say "ESG"
+- Sloane Ortel is the CIO of Ethical Capital Investment Collaborative, Provo UT
+- Concentrated equity growth strategy (flagship), values-aligned — never say "ESG"
 - Trans woman, many trans clients. Name variations in client records may reflect legal changes — never assume mismatch = data error
 - Client philosophy: "let me see if I can talk you out of it" — long-term fit over fast AUM. Clients who panic at the bottom cost more than they're worth
 - Critical constraint: concentrated portfolio + relatively illiquid retail clients = being wrong at the bottom is existential
