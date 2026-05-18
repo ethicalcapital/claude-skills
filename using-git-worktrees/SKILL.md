@@ -13,6 +13,26 @@ Ensure work happens in an isolated workspace. Prefer your platform's native work
 
 **Announce at start:** "I'm using the using-git-worktrees skill to set up an isolated workspace."
 
+### Integration: Parallel Dispatch Pre-Flight
+
+This skill is a **pre-requisite** for `dispatching-parallel-agents`. Before any parallel work:
+
+1. You will be called by `dispatching-parallel-agents` as a pre-flight step
+2. Create ONE worktree per independent work unit (or share one from main)
+3. Verify baseline tests pass before any agent is dispatched
+4. Each agent's prompt MUST include its worktree path so it knows where to work
+
+**Contract with dispatching-parallel-agents:**
+- You provide isolated directories per work unit
+- dispatching-parallel-agents dispatches agents into those directories
+- No two agents ever touch the same file
+
+```
+Main ──┬── worktree/fix-module-a ── Agent
+       ├── worktree/fix-module-b ── Agent
+       └── worktree/fix-module-c ── Agent
+```
+
 ## Step 0: Detect Existing Isolation
 
 **Before creating anything, check if you are already in an isolated workspace.**
