@@ -105,57 +105,6 @@ Skip any step = lying, not verifying
 ❌ Trust agent report
 ```
 
-## State Fact-Checking Gate
-
-Before any completion claim, verify that state-as-described IS current state.
-
-The most insidious failure mode is claiming work is done because you *remember* doing it — but the actual state of the world hasn't caught up, or you context-switched before the final step.
-
-### The Gate
-
-```
-BEFORE claiming any state (merged, deployed, fixed, passing):
-
-1. TODO RECONCILIATION
-   For every todo marked `completed`:
-   - ✅ Merge: `git log --oneline` confirms the commit is on target branch
-   - ✅ Fix: test output shows 0 failures (fresh run, not last run)
-   - ✅ Deploy: health endpoint or deployment status confirms live
-   - ✅ PR closed: GitHub confirms PR is merged, branch deleted
-   - ⛔ "I remember doing it" — verify is not remembering
-
-2. STATUS FACT-CHECK  
-   For every claim in your response:
-   - "Tests pass" → you ran them THIS message, not last message
-   - "PR merged" → git log shows the commit, PR shows Merged status
-   - "Deployed" → request the endpoint, check the version
-   - "Ticket done" → Linear/issue tracker confirms status
-   - ⛔ "Should be" / "Probably" / "I think" — not evidence
-
-3. CLAIM AUDIT
-   Read your claim. Ask: what would prove it's false?
-   - If you can't produce counter-evidence in 5 seconds → RACE CONDITION
-   - Your description of state diverged from reality
-   - STOP. Re-verify before speaking.
-
-4. PERIODIC STATE RECONCILIATION
-   Every N turns (N=5 for fast work, N=10 for deep work):
-   - Re-read your active todos
-   - Is each status still accurate?
-   - Did anything land/merge/deploy that you forgot to track?
-   - Update todos to match reality, not memory
-```
-
-### Common State Divergence Patterns
-
-| Pattern | What Happens | Fix |
-|---------|-------------|-----|
-| **Merge amnesia** | Merged PR, context-switched, forgot to update todos | Todo update paired with merge action |
-| **Optimistic completion** | Marked done because "it should work" not because it was verified | Gate function above |
-| **Stale state** | CI passed 3 turns ago, assumed still passing today | Fresh verification |
-| **Ticket drift** | Ticket shows In Progress but you're about to claim Done | Check ticket status before claiming |
-| **Cross-session gap** | Resumed session, system says 4/5 done but actual state is different | Periodic reconciliation on resume |
-
 ## Why This Matters
 
 From 24 failure memories:

@@ -13,60 +13,6 @@ When you have multiple unrelated failures (different test files, different subsy
 
 **Core principle:** Dispatch one agent per independent problem domain. Let them work concurrently.
 
-## Pre-Flight: Worktree Isolation
-
-**Do NOT dispatch parallel agents from your main working directory.** Each agent needs an isolated workspace to avoid file conflicts and cross-agent contamination.
-
-### Gate: Check Before Dispatch
-
-```
-1. COUNT the independent work units (files touched, subsystems changed)
-2. DECLARE which files each unit will touch
-3. CHECK for file overlap between units:
-   - NO overlap → parallel-safe
-   - PARTIAL overlap → split further or serialize
-   - FULL overlap → not parallelizable, serialize
-4. VERIFY: 2+ units, each touching disjoint files → proceed
-5. ONLY THEN: create worktree(s) and dispatch
-```
-
-### Worktree Setup
-
-Before dispatching, ensure isolated workspace:
-
-1. **Invoke `using-git-worktrees` skill** to create a worktree from main
-2. **Verify baseline tests pass** in the worktree
-3. **Dispatch parallel agents** — each works independently
-4. **Merge worktrees back** after all agents complete
-
-Each independent work stream gets its own worktree branch. Agents never edit the same file — the pre-flight gate ensures this.
-
-```
-┌─────────────┐     ┌──────────────────┐     ┌─────────────────┐
-│ Main branch │────▶│ worktree/unit-1  │────▶│ Agent 1: fix A  │
-│             │     ├──────────────────┤     ├─────────────────┤
-│             │────▶│ worktree/unit-2  │────▶│ Agent 2: fix B  │
-│             │     ├──────────────────┤     ├─────────────────┤
-│             │────▶│ worktree/unit-3  │────▶│ Agent 3: fix C  │
-└─────────────┘     └──────────────────┘     └─────────────────┘
-                           │                         │
-                           └──── all independent ────┘
-```
-
-### Anti-Pattern: Dispatch Without Isolation
-
-```diff
-- // WRONG: Direct dispatch from working dir — file conflicts guaranteed
-- Task("Fix module A")  // edits src/a.ts
-- Task("Fix module B")  // edits src/b.ts
-- // Both see dirty working tree, both create conflicting state
-
-+ // CORRECT: Worktree first, then dispatch
-+ // using-git-worktrees creates isolated workspaces
-+ Task("Fix module A — worktree at .worktrees/fix-a")
-+ Task("Fix module B — worktree at .worktrees/fix-b")
-```
-
 ## When to Use
 
 ```dot

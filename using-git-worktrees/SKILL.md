@@ -13,43 +13,6 @@ Ensure work happens in an isolated workspace. Prefer your platform's native work
 
 **Announce at start:** "I'm using the using-git-worktrees skill to set up an isolated workspace."
 
-### Integration: Parallel Dispatch Pre-Flight
-
-This skill is a **pre-requisite** for `dispatching-parallel-agents`. Before any parallel work:
-
-1. You will be called by `dispatching-parallel-agents` as a pre-flight step
-2. Create ONE worktree per independent work unit (or share one from main)
-3. Verify baseline tests pass before any agent is dispatched
-4. Each agent's prompt MUST include its worktree path so it knows where to work
-
-**Contract with dispatching-parallel-agents:**
-- You provide isolated directories per work unit
-- dispatching-parallel-agents dispatches agents into those directories
-- No two agents ever touch the same file
-
-```
-Main ──┬── worktree/fix-module-a ── Agent
-       ├── worktree/fix-module-b ── Agent
-       └── worktree/fix-module-c ── Agent
-```
-
-### Integration lineage pre-flight (dev/main)
-
-When doing shared-branch integration work (especially `dev` ↔ `main`), verify branch lineage first:
-
-```bash
-git fetch origin main dev
-git merge-base origin/dev origin/main
-git rev-list --left-right --count origin/dev...origin/main
-```
-
-Interpretation:
-- `merge-base` empty/missing + repeated add/add conflicts => unrelated-history state
-- `rev-list` output `0 0` => branches are aligned at the same tip
-- non-zero counts => divergence; plan the integration before starting edits
-
-After landing an integration PR, run the same check again and fast-forward the lagging shared branch so both refs converge.
-
 ## Step 0: Detect Existing Isolation
 
 **Before creating anything, check if you are already in an isolated workspace.**
