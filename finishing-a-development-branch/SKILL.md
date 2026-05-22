@@ -109,7 +109,7 @@ git merge <feature-branch>
 # Verify tests on merged result
 <test command>
 
-# Only after merge succeeds: cleanup worktree (Step 6), then delete branch
+# Only after merge succeeds: cleanup worktree (Step 7), then delete branch
 ```
 
 Then: Cleanup worktree (Step 6), then delete branch:
@@ -163,12 +163,28 @@ MAIN_ROOT=$(git -C "$(git rev-parse --git-common-dir)/.." rev-parse --show-tople
 cd "$MAIN_ROOT"
 ```
 
-Then: Cleanup worktree (Step 6), then force-delete branch:
+Then: Cleanup worktree (Step 7), then force-delete branch:
 ```bash
 git branch -D <feature-branch>
 ```
 
-### Step 6: Cleanup Workspace
+### Step 6: Shared-branch Lineage Check (dev/main integration)
+
+When this workflow lands integration work that touches shared branches (`dev`/`main`), run lineage parity checks before declaring complete:
+
+```bash
+git fetch origin main dev
+git merge-base origin/dev origin/main
+git rev-list --left-right --count origin/dev...origin/main
+```
+
+Expected stable state after reconciliation:
+- merge-base exists
+- divergence is `0 0` (both tips aligned)
+
+If divergence is non-zero after merge completion, fast-forward the lagging branch to the merged tip (no new content changes), then re-check until `0 0`.
+
+### Step 7: Cleanup Workspace
 
 **Only runs for Options 1 and 4.** Options 2 and 3 always preserve the worktree.
 
@@ -199,6 +215,8 @@ git worktree prune  # Self-healing: clean up any stale registrations
 | 2. Create PR | - | yes | yes | - |
 | 3. Keep as-is | - | - | yes | - |
 | 4. Discard | - | - | - | yes (force) |
+
+Lineage parity (`dev`/`main`) is required whenever integration work has just been landed.
 
 ## Common Mistakes
 
@@ -249,3 +267,4 @@ git worktree prune  # Self-healing: clean up any stale registrations
 - Clean up worktree for Options 1 & 4 only
 - `cd` to main repo root before worktree removal
 - Run `git worktree prune` after removal
+- For `dev`/`main` integration work, verify `git rev-list --left-right --count origin/dev...origin/main` returns `0 0` before calling the workflow complete

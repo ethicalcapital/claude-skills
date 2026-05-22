@@ -33,6 +33,23 @@ Main ──┬── worktree/fix-module-a ── Agent
        └── worktree/fix-module-c ── Agent
 ```
 
+### Integration lineage pre-flight (dev/main)
+
+When doing shared-branch integration work (especially `dev` ↔ `main`), verify branch lineage first:
+
+```bash
+git fetch origin main dev
+git merge-base origin/dev origin/main
+git rev-list --left-right --count origin/dev...origin/main
+```
+
+Interpretation:
+- `merge-base` empty/missing + repeated add/add conflicts => unrelated-history state
+- `rev-list` output `0 0` => branches are aligned at the same tip
+- non-zero counts => divergence; plan the integration before starting edits
+
+After landing an integration PR, run the same check again and fast-forward the lagging shared branch so both refs converge.
+
 ## Step 0: Detect Existing Isolation
 
 **Before creating anything, check if you are already in an isolated workspace.**
