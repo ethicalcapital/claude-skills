@@ -10,8 +10,12 @@ Beads is truth. Linear, GitHub, and Forgejo are mirrors. Write with `br`/`bd` un
 
 ## Rules
 
+- Track all work in Beads.
 - Start local: `scripts/beads-bootstrap.sh`.
+- Before starting any task, run `bd ready`.
+- File discovered work with `bd create`.
 - Mutate with `br`/`bd`: create, update, comment, dep, claim, close.
+- Before ending any session, run `bd sync`. If unavailable locally, record that and run the repo's current export/sync path instead.
 - Never edit `.beads/issues.jsonl` by hand; mutate DB, then `bd export -o .beads/issues.jsonl`.
 - Never run bare `bv`; it opens a TUI. Use robot/search flags.
 - For Linear commands, use BWS and never print secrets.
