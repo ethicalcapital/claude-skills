@@ -6,11 +6,12 @@ version: 1.0.0
 
 # Beads Issue Tracking
 
-Beads is the authoritative issue surface for agent execution in this repo. Linear is a mirror/sync target; agents should start from Beads and use `br`/`bd` for mutations.
+Beads is the authoritative issue surface and default local writer for agent execution in this repo. Linear, GitHub, and Forgejo are secondary mirrors/sync targets only; agents must start from Beads and use `br`/`bd` for all issue mutations unless the user explicitly says otherwise.
 
 ## Core rules
 
-- Use `br` (or `bd`) for issue mutations. Do **not** manually edit `.beads/issues.jsonl`.
+- Use `br` (or `bd`) for issue creation, updates, comments, dependency changes, assignment, and closure. Do **not** create/update issues directly in Linear/GitHub/Forgejo by default.
+- Do **not** manually edit `.beads/issues.jsonl`; mutate with `br`/`bd`, then export/sync.
 - Never run bare `bv` in an agent session; it opens an interactive TUI and can block. Use `bv --robot-*` flags.
 - `.beads/issues.jsonl`, `.beads/config.yaml`, `.beads/metadata.json`, `.beads/README.md`, `.beads/hooks/`, and `.beads/linear-history/` are git-tracked project state.
 - `.beads/embeddeddolt/`, locks, sockets, backups, credentials, and sync state are local runtime files and stay ignored.
@@ -47,7 +48,7 @@ br close ETH-xxxxxx            # close after verification
 br dep add ETH-a ETH-b         # record dependency/blocking relation
 ```
 
-## Linear sync
+## Secondary mirror sync
 
 The repo is configured for team `ETH` via Beads Linear sync. Beads is the source of truth; push local Beads state to Linear with:
 
@@ -55,6 +56,8 @@ The repo is configured for team `ETH` via Beads Linear sync. Beads is the source
 scripts/beads-sync-to-linear.sh --dry-run
 scripts/beads-sync-to-linear.sh
 ```
+
+GitHub and Forgejo are secondary mirrors as well. Do not use them as the default writer; create a Beads issue first, then mirror/link outward when needed.
 
 The Linear → Beads path is for one-time seeding/recovery only, not agent startup:
 
