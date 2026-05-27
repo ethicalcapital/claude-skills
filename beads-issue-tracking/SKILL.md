@@ -1,7 +1,7 @@
 ---
 skill: beads-issue-tracking
 description: Beads-first work tracking with bv search/triage. MUST READ before starting work, issue/backlog triage, issue mutations, or next-task selection.
-version: 1.3.0
+version: 1.4.0
 ---
 
 # Beads Issue Tracking
@@ -15,8 +15,9 @@ Beads is truth. Linear, GitHub, and Forgejo are mirrors. Write with `br`/`bd` un
 - Before starting any task, run `bd ready`.
 - File any discovered work >2 minutes with `bd create`.
 - Cover blockers and related follow-ups; link them with deps.
-- Before ending: `bd dolt push` if using a Dolt remote; `bd backup sync` if portable backups are configured; then `git push`.
-- Never edit `.beads/issues.jsonl` by hand; mutate DB, then export/sync.
+- Before ending: persist state to git with `bd export -o .beads/issues.jsonl`, commit, and `git push`.
+- Dolt remotes/backups are optional only when configured.
+- Never edit `.beads/issues.jsonl` by hand; mutate DB, then export.
 - Never run bare `bv`; it opens a TUI. Use robot/search flags.
 
 ## Non-interactive commands only
@@ -70,14 +71,23 @@ Use `--format toon` for summaries; JSON when piping to `jq`.
 
 `bv --search` indexes issue ID, title, labels, and description. Put durable context in descriptions: source paths, evidence, decisions, constraints, acceptance checks, mirror links. Use comments for chatter/logs. If a comment changes search meaning, summarize it into the description. No secrets.
 
-## Sync and recovery
+## State persistence
 
-Current Beads commands:
+Default for now: save Beads state in git.
 
 ```bash
-bd dolt push      # publish to Dolt remote, if configured
-bd dolt pull      # recover from sync conflicts / stale state
-bd backup sync    # portable backup publication, if configured
+bd export -o .beads/issues.jsonl
+git add .beads/issues.jsonl
+git commit -m "beads: update issue state"
+git push
+```
+
+Optional only when configured:
+
+```bash
+bd dolt push      # Dolt remote
+bd dolt pull      # recover from remote/stale state
+bd backup sync    # portable backup
 bd backup restore # restore portable backup
 bd doctor         # diagnose only; do not run --fix without explicit approval
 ```
