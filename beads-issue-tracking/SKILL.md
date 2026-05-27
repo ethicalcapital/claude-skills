@@ -1,83 +1,71 @@
 ---
 skill: beads-issue-tracking
-description: Beads-first issue tracking with bv graph-aware triage and Linear sync. MUST READ before issue/backlog triage, creating/updating work items, or selecting next tasks.
-version: 1.0.0
+description: Beads-first issue tracking with bv graph/search triage. MUST READ before issue/backlog triage, issue mutations, or next-task selection.
+version: 1.1.0
 ---
 
 # Beads Issue Tracking
 
-Beads is the authoritative issue surface and default local writer for agent execution in this repo. Linear, GitHub, and Forgejo are secondary mirrors/sync targets only; agents must start from Beads and use `br`/`bd` for all issue mutations unless the user explicitly says otherwise.
+Beads is truth. Linear, GitHub, and Forgejo are mirrors. Write with `br`/`bd` unless Sloane explicitly says otherwise.
 
-## Core rules
+## Rules
 
-- Use `br` (or `bd`) for issue creation, updates, comments, dependency changes, assignment, and closure. Do **not** create/update issues directly in Linear/GitHub/Forgejo by default.
-- Do **not** manually edit `.beads/issues.jsonl`; mutate with `br`/`bd`, then export/sync.
-- Never run bare `bv` in an agent session; it opens an interactive TUI and can block. Use `bv --robot-*` flags.
-- `.beads/issues.jsonl`, `.beads/config.yaml`, `.beads/metadata.json`, `.beads/README.md`, `.beads/hooks/`, and `.beads/linear-history/` are git-tracked project state.
-- `.beads/embeddeddolt/`, locks, sockets, backups, credentials, and sync state are local runtime files and stay ignored.
-- For Linear access, wrap commands in BWS (`bws run -- ...`) and never print secrets.
+- Start local: `scripts/beads-bootstrap.sh`.
+- Mutate with `br`/`bd`: create, update, comment, dep, claim, close.
+- Never edit `.beads/issues.jsonl` by hand; mutate DB, then `bd export -o .beads/issues.jsonl`.
+- Never run bare `bv`; it opens a TUI. Use robot/search flags.
+- For Linear commands, use BWS and never print secrets.
 
-## Start-of-work triage
+## bv first
 
-```bash
-# Full graph-aware triage summary
-bv --robot-triage --format json
-
-# Minimal deterministic next pick
-bv --robot-next --format json
-
-# Parallelizable dependency-respecting execution tracks
-bv --robot-plan --format json
-
-# Check graph health/cycles before changing dependency structure
-bv --robot-insights --format json
-```
-
-Prefer `bv --robot-triage` over parsing JSONL yourself. It computes PageRank, betweenness, critical path, cycles, blocker cascades, and quick wins.
-
-## Common Beads commands
+Use `bv`, not raw JSONL, for issue context:
 
 ```bash
-br list --json                 # list local issues
-br ready --json                # ready work: open and unblocked
-br show ETH-xxxxxx             # inspect one issue
-br create "Title" --type task  # create local issue
-br update ETH-xxxxxx ...       # update fields
-br comment ETH-xxxxxx -m ...   # add context
-br close ETH-xxxxxx            # close after verification
-br dep add ETH-a ETH-b         # record dependency/blocking relation
+bv --search "query terms" --robot-search --format json   # semantic issue search
+bv --robot-next --format json                            # best next task
+bv --robot-triage --format toon                          # summary, blockers, quick wins
+bv --robot-plan --format toon                            # dependency-aware tracks
+bv --robot-insights --format json                        # cycles, bottlenecks, graph health
+bv --robot-alerts --format json                          # stale/blocking/priority alerts
+bv --robot-suggest --format json                         # duplicates, missing deps, hygiene
 ```
 
-## Secondary mirror sync
+Use `--format toon` for summaries; JSON when piping to `jq`.
 
-The repo is configured for team `ETH` via Beads Linear sync. Beads is the source of truth; push local Beads state to Linear with:
+## Hydrate for search
+
+`bv --search` indexes issue ID, title, labels, and description. Put durable context in descriptions:
+
+- source files/URLs
+- current-state evidence
+- decisions and constraints
+- acceptance checks
+- mirror links
+- concise imported context
+
+Use comments for logs/chatter. If a comment changes search meaning, summarize it into the description. No secrets.
+
+## Common commands
+
+```bash
+br ready --json
+br show ETH-xxxxxx --json
+br create "Title" --type task --description "..." --labels a,b
+br update ETH-xxxxxx --claim
+br update ETH-xxxxxx --body-file /tmp/desc.md
+br comment ETH-xxxxxx --file /tmp/note.md
+br dep add ETH-a ETH-b
+br close ETH-xxxxxx
+bd export -o .beads/issues.jsonl
+```
+
+## Mirrors
+
+Push Beads outward only:
 
 ```bash
 scripts/beads-sync-to-linear.sh --dry-run
 scripts/beads-sync-to-linear.sh
 ```
 
-GitHub and Forgejo are secondary mirrors as well. Do not use them as the default writer; create a Beads issue first, then mirror/link outward when needed.
-
-The Linear → Beads path is for one-time seeding/recovery only, not agent startup:
-
-```bash
-scripts/beads-refresh-linear.sh --dry-run
-scripts/beads-refresh-linear.sh
-```
-
-Agent startup should only bootstrap local Beads state from git-tracked `.beads/issues.jsonl`:
-
-```bash
-scripts/beads-bootstrap.sh
-```
-
-## Context-mode issue lookups
-
-For broad backlog/status questions, search the `issues` source before scanning files or calling Linear:
-
-```text
-ctx_search(queries: ["blocked P1", "ready work", "critical path"], source: "issues")
-```
-
-Keep indexed issue snippets bounded to active/open records only.
+`scripts/beads-refresh-linear.sh` is seeding/recovery only, not startup.
