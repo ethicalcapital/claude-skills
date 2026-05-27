@@ -1,7 +1,7 @@
 ---
 skill: beads-issue-tracking
 description: Beads-first work tracking with bv search/triage. MUST READ before starting work, issue/backlog triage, issue mutations, or next-task selection.
-version: 1.2.0
+version: 1.3.0
 ---
 
 # Beads Issue Tracking
@@ -15,7 +15,7 @@ Beads is truth. Linear, GitHub, and Forgejo are mirrors. Write with `br`/`bd` un
 - Before starting any task, run `bd ready`.
 - File any discovered work >2 minutes with `bd create`.
 - Cover blockers and related follow-ups; link them with deps.
-- Before ending, run `bd sync`. If unavailable, record it and run the repo export/sync fallback.
+- Before ending: `bd dolt push` if using a Dolt remote; `bd backup sync` if portable backups are configured; then `git push`.
 - Never edit `.beads/issues.jsonl` by hand; mutate DB, then export/sync.
 - Never run bare `bv`; it opens a TUI. Use robot/search flags.
 
@@ -27,11 +27,13 @@ Never run `bd create` without flags; it can hang waiting for input.
 bd create "Title" --type task --priority 2 --description "Context" --json
 echo 'Description with `code` or "quotes"' \
   | bd create "Title" --type task --priority 2 --description=- --json
+bd show ETH-xxxx --json
+bd ready --json
 bd update ETH-xxxx --claim
 bd close ETH-xxxx --reason "What actually shipped"
 ```
 
-Types: `bug|feature|task|epic|chore|decision`. Priority: `0` highest, `4` lowest.
+Types: `bug|feature|task|epic|chore|decision`. Priority: `0` highest, `4` lowest. Always use `--json` for programmatic access.
 
 ## Think → Create → Act
 
@@ -39,7 +41,7 @@ Types: `bug|feature|task|epic|chore|decision`. Priority: `0` highest, `4` lowest
 - Known feature: create the issue first with acceptance criteria, then work from `bd show <id>`.
 - Large goal: create an epic and immediately decompose into child tasks.
 - Atomic task: one implementation step, clear done check.
-- Dependencies: use `blocks` for hard blockers and `parent-child` for hierarchy; `bd ready` depends on this.
+- Dependencies: use `blocks` for hard blockers, `parent-child` for hierarchy, `discovered-from` for investigation fallout, and `related` for soft links; `bd ready` depends on blockers.
 
 ## Field discipline
 
@@ -68,9 +70,19 @@ Use `--format toon` for summaries; JSON when piping to `jq`.
 
 `bv --search` indexes issue ID, title, labels, and description. Put durable context in descriptions: source paths, evidence, decisions, constraints, acceptance checks, mirror links. Use comments for chatter/logs. If a comment changes search meaning, summarize it into the description. No secrets.
 
-## Mirrors
+## Sync and recovery
 
-Push Beads outward only:
+Current Beads commands:
+
+```bash
+bd dolt push      # publish to Dolt remote, if configured
+bd dolt pull      # recover from sync conflicts / stale state
+bd backup sync    # portable backup publication, if configured
+bd backup restore # restore portable backup
+bd doctor         # diagnose only; do not run --fix without explicit approval
+```
+
+Repo mirrors are outward only:
 
 ```bash
 scripts/beads-sync-to-linear.sh --dry-run
